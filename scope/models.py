@@ -51,23 +51,16 @@ def add_dense_layers(args, model, widths, input_shape=None):
     except ValueError:
       # If it's the first layer we need to specify the input shape
       model.add(_dense_layer(args, width, input_shape=input_shape))
-    ### Aitor: changed order of batchnorm, because I want to normalize the activations
-    model.add(Activation(args.activation))
-
     if args.batch_norm:
-      if args.mean_to_zero:
-        bconstraint = keras.constraints.MaxNorm(max_value=0)
-      else:
-        bconstraint=None
-      model.add(BatchNormalization(beta_constraint=bconstraint))
-    #model.add(Activation(args.activation))
+      model.add(BatchNormalization(fused=False))
+    model.add(Activation(args.activation))
     if args.dropout:
       model.add(Dropout(0.25))
 
 
 def regression_fc_model(args, output_dim):
   """Fully-connected regression"""
-  model = Sequential()
+  model = keras.models.Sequential()
   if not args.fc_widths:
     model.add(
         _dense_layer(args, output_dim, name='regression_map', input_shape=(1,)))
@@ -105,70 +98,33 @@ def classification_convnet_model(args, input_shape, num_classes):
   model.add(keras.layers.InputLayer(input_shape=input_shape))
 
   model.add(_conv2d_layer(args, 32, (3, 3), padding='same'))
-  # if args.batch_norm:
-  #   # The default Conv2D data format is 'channels_last' and the
-  #   # default BatchNormalization axes is -1.
-  #   #
-  #   # In batch norm fix a channel and average over the samples
-  #   # and the spatial location. axis = the axis we keep fixed
-  #   # (averaging over the rest), so for 'channels_last' this is
-  #   # the last axis, -1.
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-
-  ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    # The default Conv2D data format is 'channels_last' and the
+    # default BatchNormalization axes is -1.
+    #
+    # In batch norm fix a channel and average over the samples
+    # and the spatial location. axis = the axis we keep fixed
+    # (averaging over the rest), so for 'channels_last' this is
+    # the last axis, -1.
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(_conv2d_layer(args, 32, (3, 3)))
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(MaxPooling2D(pool_size=(2, 2)))
   if args.dropout:
     model.add(Dropout(0.25))
 
   model.add(_conv2d_layer(args, 64, (3, 3), padding='same'))
 
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(_conv2d_layer(args, 64, (3, 3)))
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(MaxPooling2D(pool_size=(2, 2)))
   if args.dropout:
     model.add(Dropout(0.25))
@@ -184,18 +140,9 @@ def classification_convnet_model(args, input_shape, num_classes):
                 args,
                 args.cnn_last_layer,
                 name='dense-overparam{}'.format(i + 1)))
-    # if args.batch_norm:
-    #   model.add(BatchNormalization())
-    # model.add(Activation(args.activation))
-     ## Aitor
-  model.add(Activation(args.activation))
-  if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    if args.batch_norm:
+      model.add(BatchNormalization(fused=False))
+    model.add(Activation(args.activation))
     if args.dropout:
       model.add(Dropout(0.5))
   if args.overparam > 0:
@@ -216,7 +163,7 @@ def classification_small_convnet_model(args, input_shape, num_classes):
   model.add(keras.layers.InputLayer(input_shape=input_shape))
   model.add(
       _conv2d_layer(args, 32, (3, 3), padding='same'))
-  # if args.batch_norm:
+  if args.batch_norm:
     # The default Conv2D data format is 'channels_last' and the
     # default BatchNormalization axes is -1.
     #
@@ -224,60 +171,24 @@ def classification_small_convnet_model(args, input_shape, num_classes):
     # and the spatial location. axis = the axis we keep fixed
     # (averaging over the rest), so for 'channels_last' this is
     # the last axis, -1.
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
+    model.add(BatchNormalization(fused=False))
   model.add(Activation(args.activation))
-  if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
   model.add(_conv2d_layer(args, 32, (3, 3)))
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(MaxPooling2D(pool_size=(2, 2)))
   if args.dropout:
     model.add(Dropout(0.25))
 
   model.add(_conv2d_layer(args, 64, (3, 3), padding='same'))
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(_conv2d_layer(args, 64, (3, 3)))
-  # if args.batch_norm:
-  #   model.add(BatchNormalization())
-  # model.add(Activation(args.activation))
-   ## Aitor
-  model.add(Activation(args.activation))
   if args.batch_norm:
-    if args.mean_to_zero:
-      bconstraint=keras.constraints.MaxNorm(max_value=0)
-    else:
-      bconstraint=None
-    model.add(BatchNormalization(beta_constraint=bconstraint))
-  ## Aitor
+    model.add(BatchNormalization(fused=False))
+  model.add(Activation(args.activation))
   model.add(MaxPooling2D(pool_size=(2, 2)))
   if args.dropout:
     model.add(Dropout(0.25))
@@ -290,7 +201,7 @@ def classification_small_convnet_model(args, input_shape, num_classes):
   #             model.add(Dense(args.cnn_last_layer,
   #                             name='dense-overparam{}'.format(i + 1)))
   #     if args.batch_norm:
-  #         model.add(BatchNormalization())
+  #         model.add(BatchNormalization(fused=False))
   #     model.add(Activation(args.activation))
   #     if args.dropout:
   #         model.add(Dropout(0.5))
